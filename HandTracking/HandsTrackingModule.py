@@ -3,73 +3,74 @@ import mediapipe as mp
 import time  # Frames
 
 
-cap = cv2.VideoCapture(0)
+class handDetector():
+    def __init__(self, mode=False, maxHands=2, detectionCon=0.5, trackCon=0.5):
+        self.mode = mode  # Self Variable
+        self.maxHands = maxHands
+        self.detectionCon = detectionCon
+        self.trackCon = trackCon
 
-mpHands = mp.solutions.hands
-hands = mpHands.Hands()  # Keep empty to use defaults
-mpDraw = mp.solutions.drawing_utils  # Drawing function
+        self.mpHands = mp.solutions.hands
+        self.hands = self.mpHands.Hands(self.mode, self.maxHands, self.detectionCon,
+                                        self.trackCon)  # Keep empty to use defaults
+        self.mpDraw = mp.solutions.drawing_utils  # Drawing function
 
-pTime = 0
-cTime = 0
+    def findHands(self, img, draw=True):
+        # Converting object to RGB to send to hands
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-while True:
-  success, img = cap.read()
+        # Processing the converted img
+        self.results = self.hands.process(imgRGB)
+        # print(results.multi_hand_landmarks)
 
-  # Converting object to RGB to send to hands
-  imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # Checking for multiHands
+        if self.results.multi_hand_landmarks:
+            # Extracting information of each hand
+            for handsLms in self.results.multi_hand_landmarks:
+                if draw:
+                    # Drawing on the original image on a single hand in the loop
+                    self.mpDraw.draw_landmarks(img, handsLms, self.mpHands.HAND_CONNECTIONS)
 
-  # Proccessing the converted img
-  results = hands.process(imgRGB)  
+        return img
 
-  # print(results.multi_hand_landmarks)
+    def findPosition(self, img, handNo = 0, draw=True):
 
-  # Checking for multiHands
-  if results.multi_hand_landmarks:  
-      # Extracting information of each hand
-      for handsLms in results.multi_hand_landmarks: 
-          for id, lm in enumerate(handsLms.landmark):
-             #print(id,lm)
-             h, w, c = img.shape 
-             cx, cy = int(lm.x*w), int(lm.y*h)
-             print(id ,cx,cy)
-             
-             if id ==0:
-                 cv2.circle(img,(cx,cy),15,(255,0,255),cv2.FILLED)
+        lmList = []  # List Containing Landmarks positions
+        if self.results.multi_hand_landmarks:
+            myHand = self.results.multi_hand_landmarks[handNo]  # Choosing one hand
+            for id, lm in enumerate(myHand.landmark):
+                #print(id, lm)
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                # print(id, cx, cy)
+                lmList.append([id, cx, cy])
+                if draw:
+                    cv2.circle(img, (cx, cy), 7, (255, 0, 255), cv2.FILLED)
 
-             # Drawing on the original image on a single hand in the loop
-             mpDraw.draw_landmarks(img, handsLms, mpHands.HAND_CONNECTIONS)
-
-  # Calculating Frames
-  cTime = time.time()
-  fps = 1/(cTime-pTime)
-  pTime = cTime
-
-  cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 3)
+        return lmList
 
 
-  cv2.imshow("Image", img)
-  cv2.waitKey(1)
-
-
-def main():   
+def main():
     pTime = 0
     cTime = 0
-
+    cap = cv2.VideoCapture(1)
+    detector = handDetector()
     while True:
-        g
         success, img = cap.read()
+        img = detector.findHands(img)
+        lmList = detector.findPosition(img)
+        if len(lmList)!=0:
+            print(lmList[4])
 
         # Calculating Frames
         cTime = time.time()
-        fps = 1/(cTime-pTime)
+        fps = 1 / (cTime - pTime)
         pTime = cTime
 
         cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 3)
 
-
         cv2.imshow("Image", img)
         cv2.waitKey(1)
-
 
 
 if __name__ == "__main__":
